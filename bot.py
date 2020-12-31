@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import discord
@@ -54,6 +55,27 @@ async def on_ready():
 @bot.command(name='ping')
 async def ping(ctx):
     await ctx.send('pong!')
+
+
+@bot.command(name='purge')
+async def purge(ctx, amount=50):
+    await ctx.send(
+        f'This operation will delete **{amount}** non-pinned message(s) above in this channel, **{ctx.channel.name}**.'
+        f'\nTo continue this operation, type "confirm" in 30 seconds.'
+    )
+    try:
+        msg = await bot.wait_for("message", timeout=30,
+                                 check=lambda m: m.author == ctx.author and m.channel.id == ctx.channel.id)
+
+        if msg.content == 'confirm':
+            deleted = await ctx.channel.purge(limit=amount+3,  # amount + (command, info msg, 'confirm')
+                                              check=lambda m: not m.pinned)
+            await ctx.send(f'Deleted {max(0, len(deleted)-3)} non-pinned message(s).', delete_after=bot.deleteDelay)
+        else:
+            await ctx.send('Purge cancelled.')
+
+    except asyncio.TimeoutError:
+        await ctx.send("Purge operation timed out (30s).")
 
 
 @bot.command(name='active')
