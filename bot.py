@@ -2,20 +2,42 @@ import os
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import CheckFailure
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
+ROLE = os.getenv('DISCORD_ROLE')
 
 
 class Bot(commands.Bot):
     def __init__(self, command_prefix='!', **options):
         super().__init__(command_prefix, **options)
         self.isActivated = False
+        self.deleteDelay = 30  # unit: sec
 
 
 bot = Bot()
+
+
+@bot.check
+async def check_perm(ctx: discord.ext.commands.Context):
+    isAdmin = ctx.channel.permissions_for(ctx.author) and 8 == 8  # check Administrator permission
+    hasRole = ROLE in [role.name for role in ctx.author.roles]
+    return isAdmin or hasRole
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    ignored = (commands.CommandNotFound, )
+
+    if isinstance(error, ignored):
+        return
+
+    if isinstance(error, CheckFailure):
+        await ctx.send("You don't have required permissions!")
+        return
 
 
 @bot.event
@@ -59,11 +81,22 @@ async def inactivate(ctx):
     else:
         await ctx.send("Already inactivated!")
 
+
+@bot.command(name='delay')
+async def setDelay(ctx: discord.ext.commands.Context, time: int):
+    bot.deleteDelay = time
+    await ctx.send("Message remove delay has been set to: " + str(time) + " second(s)")
+
+
 @bot.event
-async def on_message(msg):
+async def on_message(msg: discord.Message):
+    await bot.process_commands(msg)
     if not bot.isActivated:
         return
     else:
-        if msg.Guild.get_channel() ==
+        if msg.channel.name == 'music':
+            await msg.delete(delay=bot.deleteDelay)
+        else:
+            return
 
 bot.run(TOKEN)
